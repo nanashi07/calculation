@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Chain Bet Calculator</title>
+    <style>
+      body {
+        font-family: Arial;
+        padding: 20px;
+      }
+      input,
+      select {
+        margin: 5px;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        margin-top: 10px;
+      }
+      td,
+      th {
+        border: 1px solid #ccc;
+        padding: 8px;
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>Chain Bet Calculator</h2>
+
+    <label
+      >Initial Stake: $<input
+        type="number"
+        id="initialStake"
+        value="10" /></label
+    ><br />
+
+    <label
+      >Mode:
+      <select id="mode">
+        <option value="conservative">Conservative</option>
+        <option value="aggressive">Aggressive</option>
+        <option value="custom">Custom %</option>
+      </select>
+    </label>
+    <input
+      type="number"
+      id="customPercent"
+      placeholder="% (for custom)"
+      style="width: 80px"
+    />
+
+    <button onclick="addSelection()">Add Selection</button>
+    <button onclick="calculate()">Calculate</button>
+
+    <table id="selections">
+      <tr>
+        <th>Event</th>
+        <th>Odds</th>
+        <th>Result</th>
+        <th>Stake</th>
+        <th>Return</th>
+        <th>Action</th>
+      </tr>
+    </table>
+
+    <h3>Total Return: $<span id="totalReturn">0</span></h3>
+
+    <script>
+      let chain = [];
+
+      function addSelection() {
+        const table = document.getElementById("selections");
+        const row = table.insertRow();
+        row.innerHTML = `
+    <td><input type="text" /></td>
+    <td><input type="number" step="0.01" /></td>
+    <td>
+      <select>
+        <option value="win">Win</option>
+        <option value="lose">Lose</option>
+        <option value="void">Void</option>
+      </select>
+    </td>
+    <td>-</td>
+    <td>-</td>
+    <td><button onclick="this.parentElement.parentElement.remove()">Remove</button></td>
+  `;
+      }
+
+      function award(initStake, percent, selections) {
+        var banked = initStake;
+        for (let selection of selections) {
+          let odds = selection.odds;
+          let result = selection.result;
+
+          let stake = 0;
+          let returned = 0;
+
+          if (banked > 0) {
+            if (banked >= initStake) {
+              stake = initStake + percent * (banked - initStake);
+            } else {
+              // stake all left funds
+              stake = banked;
+            }
+            banked = banked - stake;
+          } else {
+            // no more funds to continue
+            break;
+          }
+
+          switch (result) {
+            case "win":
+              returned = stake * odds;
+              banked += returned;
+              break;
+            case "void":
+              returned = stake;
+              banked += returned;
+              break;
+            case "lose":
+              returned = 0; // no return on lose
+              break;
+          }
+
+          selection.stake = stake;
+          selection.returned = returned;
+        }
+
+        return {
+          total: banked,
+          selections: selections,
+        };
+      }
+
+      function calculate() {
+        let percent = 0;
+        switch (document.getElementById("mode").value) {
+          case "conservative":
+          default:
+            percent = 0;
+            break;
+          case "aggressive":
+            percent = 1;
+            break;
+          case "custom":
+            percent =
+              parseFloat(document.getElementById("customPercent").value) /
+                100 || 0;
+            break;
+        }
+
+        const initStake = parseFloat(
+          document.getElementById("initialStake").value
+        );
+        const table = document.getElementById("selections");
+
+        let stake = initStake;
+
+        let selections = Array.prototype.filter
+          .call(table.rows, (row) => row.querySelector("input[type='number']"))
+          .map((row) => {
+            return {
+              odds: parseFloat(row.querySelector("input[type='number']").value),
+              result: row.querySelector("select").value,
+            };
+          });
+
+        console.log([initStake, percent, selections]);
+        const awarding = award(initStake, percent, selections);
+
+        Array.prototype.filter
+          .call(table.rows, (row) => row.querySelector("input[type='number']"))
+          .forEach((row, index) => {
+            row.cells[3].textContent =
+              "$" + awarding.selections[index].stake.toFixed(2);
+            row.cells[4].textContent =
+              "$" + awarding.selections[index].returned.toFixed(2);
+          });
+
+        document.getElementById("totalReturn").textContent =
+          awarding.total.toFixed(2);
+      }
+    </script>
+  </body>
+</html>
