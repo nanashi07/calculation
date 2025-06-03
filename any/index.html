@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>AnyBet</title>
+    <style>
+      body {
+        font-size: 14px;
+        font-family: Arial, sans-serif;
+        line-height: 1.5;
+        background-color: #f9f9f9;
+        margin: 0;
+        padding: 0;
+      }
+
+      .panel {
+        padding: 15px;
+        border-bottom: 2px solid #ccc;
+        background-color: #fff;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 20px;
+        align-items: center;
+      }
+
+      .panel .panel-item {
+        margin-right: 10px;
+      }
+
+      .panel input[type="number"] {
+        width: 100px;
+        padding: 4px;
+      }
+
+      input[type="button"] {
+        padding: 6px 12px;
+        font-weight: bold;
+        cursor: pointer;
+        border: 1px solid #3498db;
+        background-color: #fff;
+        color: #3498db;
+        border-radius: 4px;
+      }
+
+      input[type="button"]:hover {
+        background-color: #3498db;
+        color: white;
+      }
+
+      input:focus {
+        outline: 2px solid #3498db;
+      }
+
+      .view {
+        padding: 20px;
+        max-width: 800px;
+        margin: auto;
+        background-color: #fff;
+        margin-top: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+      }
+
+      .odds-rows {
+        margin-top: 10px;
+      }
+
+      .odds-row {
+        padding: 10px 0;
+        border-bottom: 1px solid #ddd;
+      }
+
+      .odds-row li {
+        display: inline-block;
+        margin-right: 12px;
+        vertical-align: middle;
+      }
+
+      .odds-row li.input-odds input {
+        width: 80px;
+        padding: 4px;
+      }
+
+      .odds-row li.anybet-odds {
+        border: 1px inset gray;
+        padding: 4px 8px;
+        width: 100px;
+        background-color: #ecf0f1;
+        text-align: center;
+      }
+
+      .odds-row li.remove-row {
+        cursor: pointer;
+      }
+
+      .odds-row li.remove-row span {
+        color: red;
+        font-size: 18px;
+      }
+
+      .non-balanced {
+        color: red !important;
+        font-weight: bold;
+      }
+
+      .calculation {
+        margin-top: 20px;
+      }
+
+      .calculation div {
+        margin-bottom: 8px;
+      }
+
+      .calculation .result {
+        font-weight: bold;
+        color: #2c3e50;
+        padding: 2px 6px;
+        background-color: #ecf0f1;
+        border-radius: 4px;
+      }
+    </style>
+  </head>
+  <body onload="init()">
+    <div class="panel">
+      <div class="panel-item">
+        <input type="button" value="Add Odds" onclick="addOdds()" />
+      </div>
+      <div class="panel-item stake">
+        <label>
+          Stake
+          <input
+            type="number"
+            name="stake"
+            value="100"
+            step="1"
+            onchange="updateOdds()"
+          />
+        </label>
+      </div>
+      <div class="panel-item">
+        Algorithm
+        <label title="f(x) = a * x + b">
+          <input
+            type="radio"
+            name="option-algorithm"
+            value="liner"
+            checked="checked"
+            onchange="updateOdds()"
+          />
+          Linear
+        </label>
+        <label title="f(x) = a * √x + b">
+          <input
+            type="radio"
+            name="option-algorithm"
+            value="squat"
+            onchange="updateOdds()"
+          />
+          Squat
+        </label>
+        <label title="f(x) = a * log(x) + b">
+          <input
+            type="radio"
+            name="option-algorithm"
+            value="ln"
+            onchange="updateOdds()"
+          />
+          Nature Log
+        </label>
+      </div>
+    </div>
+    <div class="view">
+      <div class="slip"></div>
+      <div class="odds-rows"></div>
+      <hr />
+      <div class="calculation">
+        <div class="single-probability">
+          Single Probability: <span class="result"></span>
+        </div>
+        <div class="single-odds">Single Odds: <span class="result"></span></div>
+        <div class="fn">Conversion FN: <span class="result"></span></div>
+        <div class="potential-win">
+          Potential Win: <span class="result"></span>
+        </div>
+      </div>
+    </div>
+    <script>
+      function init() {
+        addOdds(4.2);
+        addOdds(3.3);
+        updateOdds();
+      }
+
+      function addChild(parent, content, clazz) {
+        let e = document.createElement("div");
+        if (content) {
+          e.innerHTML = content;
+        }
+        if (clazz) {
+          e.classList.add(clazz);
+        }
+        parent.appendChild(e);
+        return e;
+      }
+
+      function addOdds(odds) {
+        let slip = document.querySelector(".slip");
+        odds = odds > 1 ? odds : floor(Math.random() * 10 + 3);
+        addChild(
+          slip,
+          `
+            <ol class="odds-row">
+                <li>Original Odds</li>
+                <li class="input-odds"><input type="number" min="1" max="99" step="0.01" value="${odds}" onchange="updateOdds()"/></li>
+                <li>Anybet Odds</li>
+                <li class="anybet-odds">&nbsp;</li>
+                <li class="remove-row"><span onclick="removeRow(this)">&#x2718;</span></li>
+            </ol>
+            `,
+          "odds-rows"
+        );
+        updateOdds();
+      }
+
+      function removeRow(e) {
+        let slip = document.querySelector(".slip");
+        let row = e.parentElement.parentElement.parentElement;
+        slip.removeChild(row);
+        updateOdds();
+      }
+
+      function updateOdds() {
+        let algorithm = document.querySelector(
+          '[name="option-algorithm"]:checked'
+        ).value;
+
+        let odds = Array.prototype.map
+          .call(
+            document.querySelectorAll(".odds-rows .input-odds input"),
+            (e) => e
+          )
+          .map((e) => e.value * 1);
+
+        let source = anybet(...odds);
+        let fn = "";
+
+        switch (algorithm) {
+          case "liner":
+            fn = distribute(
+              (s) => s.actual[0] * s.origin[1],
+              (s) => s.actual[0],
+              (o, a, b) => floor(a * o + b),
+              (a, b) => `fn(x) = ${a} * x + ${b}`,
+              source,
+              5
+            );
+            break;
+          case "squat":
+            let pp = 1 / 2;
+            fn = distribute(
+              (s) => s.actual[0] * Math.pow(s.origin[1], pp),
+              (s) => s.actual[0],
+              (o, a, b) => floor(a * Math.pow(o, pp) + b),
+              (a, b) => `fn(x) = ${a} * x^(1/2) + ${b}`,
+              source,
+              5
+            );
+            break;
+          case "ln":
+            fn = distribute(
+              (s) => s.actual[0] * Math.log(s.origin[1]),
+              (s) => s.actual[0],
+              (o, a, b) => floor(a * Math.log(o) + b),
+              (a, b) => `fn(x) = ${a} * log(x) + ${b}`,
+              source,
+              5
+            );
+            break;
+        }
+
+        document.querySelector(
+          ".view .calculation .single-probability .result"
+        ).innerHTML = `${source.probability}`;
+        document.querySelector(
+          ".view .calculation .single-odds .result"
+        ).innerHTML = `${source.odds}`;
+        document.querySelector(".view .calculation .fn .result").innerHTML = fn;
+
+        let newOdds = Array.prototype.map.call(
+          document.querySelectorAll(".odds-row .anybet-odds"),
+          (e) => e
+        );
+        for (let i = 0; i < source.length; i++) {
+          let item = source[i];
+          newOdds[i].textContent = `${item.newOdds}`;
+          if (item.newOdds > 1) {
+            newOdds[i].classList.remove("non-balanced");
+          } else {
+            newOdds[i].classList.add("non-balanced");
+          }
+        }
+
+        let stake = document.querySelector('input[name="stake"]').value * 1;
+        let winnings = source.map((e) => e.newOdds).map((e) => stake * e);
+        winnings.sort();
+        document.querySelector(
+          ".view .calculation .potential-win .result"
+        ).innerHTML = `${floor(winnings[0])} ~ ${floor(
+          winnings[winnings.length - 1]
+        )}`;
+      }
+
+      function anybet() {
+        let probabilities = Array.prototype.map
+          .call(arguments, (e) => e)
+          .map((e) => 1 / e);
+        let allLoseProbability = probabilities
+          .map((p) => 1 - p)
+          .reduce((a, b) => a * b);
+        let anyBetProbability = 1 - allLoseProbability;
+
+        let sn = 0;
+        let source = probabilities.map((p) => {
+          return { sort: sn++, origin: [p, floor(1 / p)] };
+        });
+        source.sort((a, b) => a.origin[0] - b.origin[0]);
+
+        for (let i = 0; i < source.length; i++) {
+          let previous = i > 0 ? [] : [0];
+          for (let j = 0; j < i; j++) {
+            previous.push(source[j].origin[0]);
+          }
+          source[i].actual = [
+            floor(
+              source[i].origin[0] *
+                previous.map((p) => 1 - p).reduce((a, b) => a * b),
+              100000
+            ),
+            floor(
+              1 /
+                (source[i].origin[0] *
+                  previous.map((p) => 1 - p).reduce((a, b) => a * b))
+            ),
+          ];
+        }
+
+        source.sort((a, b) => a.sort - b.sort);
+        source.probability = anyBetProbability;
+        source.odds = floor(1 / anyBetProbability);
+        return source;
+      }
+
+      function distribute(mFn, nFn, oFn, oFnP, source, nested, minOdds) {
+        let m = source.map(mFn).reduce((a, b) => a + b);
+        let n = source.map(nFn).reduce((a, b) => a + b);
+        let b = minOdds > 0 ? (1 - minOdds) / n / source.length : 0;
+        let a = 1 / m;
+        source.map((s) => (s["newOdds"] = oFn(s.origin[1], a, b)));
+        minOdds = source
+          .map((s) => s.newOdds)
+          .reduce((a, b) => (a > b ? b : a));
+        if (minOdds < 1 && nested > 0) {
+          return distribute(mFn, nFn, oFn, oFnP, source, nested - 1, minOdds);
+        } else {
+          return oFnP(a, b);
+        }
+      }
+
+      function floor(n, p) {
+        if (!p) p = 100;
+        return Math.floor(n * p) / p;
+      }
+    </script>
+  </body>
+</html>
